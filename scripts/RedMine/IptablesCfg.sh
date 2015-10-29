@@ -49,6 +49,7 @@ then
    iptables -A SSHrules -p tcp -m tcp -m multiport --dports 22 -m state --state NEW -m recent --update --seconds 300 --hitcount 3 --name sshattack --mask 255.255.255.255 --rsource -j LOG --log-prefix "SSH REJECT: " || RETURN=$((${RETURN} + 1))
    iptables -A SSHrules -p tcp -m tcp -m multiport --dports 22 -m state --state NEW -m recent --update --seconds 300 --hitcount 3 --name sshattack --mask 255.255.255.255 --rsource -j DROP || RETURN=$((${RETURN} + 1))
    iptables -A SSHrules -p tcp -m tcp -m multiport --dports 22 -j ACCEPT || RETURN=$((${RETURN} + 1))
+   iptables -P INPUT DROP || RETURN=$((${RETURN} + 1))
 else
    echo "Failed to start iptables"
    exit 1
