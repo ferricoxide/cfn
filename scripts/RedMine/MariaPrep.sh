@@ -38,7 +38,7 @@ function InstallMariaDB() {
 # Set config options
 function ConfigMaria() {
    local RETURN=0
-   local SQLCF="/home/centos/etc/my.cnf"
+   local SQLCF="/etc/my.cnf"
 
    sed -i '/\[mysqld\]/,/\[/{
       s/^$/character-set-server=utf8\n/
