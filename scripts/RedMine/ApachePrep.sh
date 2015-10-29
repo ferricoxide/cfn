@@ -4,8 +4,9 @@
 # RPMs to support the RedMine installation
 #
 #################################################################
+THISHOST="${1:-$(hostname)}"
 
-# Check if we're root..
+# Check if calling as root..
 function AmRoot() {
    if [[ $(whoami) != "root" ]]
    then
@@ -40,48 +41,93 @@ function NukeDefWelcome() {
    echo "${RETURN}"
 }
 
-## # Configure httpd to support RedMine
-## function ConfigApache() {
-##    local RETURN=0
-##    local HTTPCF="/etc/httpd/conf/httpd.conf"
-## 
-##    # line 86: change to admin's email address
-##    ServerAdmin root@server.world
-##    # line 95: change to your server's name
-##    ServerName www.server.world:80
-##    # line 151: change
-##    AllowOverride All
-##    # line 164: add file name that it can access only with directory's name
-##    DirectoryIndex index.html index.cgi index.php
-##    # add follows to the end
-##    # server's response header
-##    ServerTokens Prod
-##    # keepalive is ON
-##    KeepAlive On
-## }
-## 
-## # Start/enable Apache
-## function MkActive_Apache() {
-##    systemctl start httpd 
-##    systemctl enable httpd 
-## }
-## # Create a Welcome page to test remote access to base-Apache
-## function TestWelcome() {
-##    local RETURN=0
-## 
-##    cat > /var/www/html/index.html << EOF
-## <html>
-##   <head
-##   <body>
-##     <div style="width: 100%; font-size: 40px; font-weight: bold; text-align: center;">
-##       Test Page
-##     </div>
-##   </body>
-## </html>
-## EOF || local RETURN=1
-## 
-##   echo ${RETURN}
-## }
+# Configure httpd to support RedMine
+function ConfigApache() {
+   local RETURN=0
+   local HTTPCF="/etc/httpd/conf/httpd.conf"
+
+   # Set ServerAdmin value
+   if [[ $(grep -qE '^[ ]*ServerAdmin' ${HTTPCF})$? -eq 0 ]]
+   then
+      sed -i '/^[ ]*ServerAdmin/{
+         s/ServerAdmin.*/ServerAdmin root@'${THISHOST}'/
+      }' ${HTTPCF} || local RETURN=1
+   else
+      sed -i '/^#.*ServerAdmin/,/^$/{
+         s/^$/ServerAdmin root@'${THISHOST}'\n/
+      }' ${HTTPCF} || local RETURN=1
+   fi
+
+   # Set ServerName value
+   if [[ $(grep -qE '^[ ]*ServerName' ${HTTPCF})$? -eq 0 ]]
+   then
+      sed -i '/^[ ]*ServerName/{
+         s/ServerName.*/ServerName '${THISHOST}':80/
+      }' ${HTTPCF} || local RETURN=1
+   else
+      sed -i '/^#.*ServerName/,/^$/{
+         s/^$/ServerName '${THISHOST}':80\n/
+      }' ${HTTPCF} || local RETURN=1
+   fi
+
+   # Set AllowOverride value
+   if [[ $(grep -qE '^[ ]*AllowOverride' ${HTTPCF})$? -eq 0 ]]
+   then
+      sed -i '/<Directory "\/var\/www\/html">/,/<\/Directory>/{
+         /^[ ]*AllowOverride/{
+            s/AllowOverride.*/AllowOverride All/
+         }
+      }' ${HTTPCF} || local RETURN=1
+   else
+      sed -i '/<Directory "\/var\/www\/html">/,/<\/Directory>/{
+         /^#.*AllowOverride/,/^$/{
+            s/^$/AllowOverride All\n/
+         }
+      }' ${HTTPCF} || local RETURN=1
+   fi
+
+   # Set DirectoryIndex value in DocumentRoot
+   sed -i '/<IfModule dir_module>/,/<\/IfModule>/{
+      /^[ ]*DirectoryIndex/{
+         s/DirectoryIndex.*/DirectoryIndex index.php index.cgi index.html/
+      } 
+   }' ${HTTPCF} || local RETURN=1
+
+   echo "ServerTokens Prod" >> ${HTTPCF} || local RETURN=1
+   echo "KeepAlive On" >> ${HTTPCF} || local RETURN=1
+
+   echo "${RETURN}"
+}
+
+# Start/enable Apache
+function MkActive_Apache() {
+   local RETURN=0
+
+   systemctl start httpd || local RETURN=1
+   systemctl enable httpd || local RETURN=1
+
+   echo "${RETURN}"
+}
+
+# Create a Welcome page to test remote access to base-Apache
+function TestWelcome() {
+   local RETURN=0
+
+   cat > /var/www/html/index.html << EOF
+<html>
+  <title>
+    Test Page
+  </title>
+  <body>
+    <div style="width: 100%; font-size: 40px; font-weight: bold; text-align: center;">
+      Test Page
+    </div>
+  </body>
+</html>
+EOF || local RETURN=1
+
+  echo ${RETURN}
+}
 
 
 ##############################
@@ -107,6 +153,13 @@ else
    echo "Failed to remove default welcome page" > /dev/stderr
 fi
 
-# ConfigApache
-# MkActive_Apache
-# TestWelcome
+# Set RedMine-supporting Apache directives
+if [[ $(ConfigApache) -eq 0 ]]
+then
+   echo "Apache configured for RedMine"
+else
+   echo "One or more Apache config-mods failed" > /dev/stderr
+fi
+
+MkActive_Apache
+TestWelcome
