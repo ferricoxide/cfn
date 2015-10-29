@@ -21,7 +21,7 @@ function AmRoot() {
 
 function InstallMariaDB() {
    local RETURN=0
-   local ISINSTALLED=$(yum list installed mariadb-server > /dev/null 2>&1)$?
+   local ISINSTALLED=$(rpm --quiet -q mariadb-server)$?
 
    if [[ ${ISINSTALLED} -eq 0 ]]
    then

@@ -31,7 +31,7 @@ function AmRoot() {
 # Install postfix as needed
 function InstallPostfix() {
    local RETURN=0
-   local ISINSTALLED=$(yum list installed postfix > /dev/null 2>&1)$?
+   local ISINSTALLED=$(rpm --quiet -q postfix)$?
 
    if [[ ${ISINSTALLED} -eq 0 ]]
    then

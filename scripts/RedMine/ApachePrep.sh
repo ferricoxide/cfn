@@ -18,7 +18,7 @@ function AmRoot() {
 # Install HTTPD services
 function InstallApache() {
    local RETURN=0
-   local ISINSTALLED=$(yum list installed httpd > /dev/null 2>&1)$?
+   local ISINSTALLED=$(rpm --quiet -q httpd)$?
 
    if [[ ${ISINSTALLED} -eq 0 ]]
    then
